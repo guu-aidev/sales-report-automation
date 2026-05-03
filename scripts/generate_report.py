@@ -557,8 +557,8 @@ def write_summary_sheet(wb: Workbook, sales_pivot: pd.DataFrame,
     chart1.y_axis.title = "売上金額（千円）"
     chart1.x_axis.title = None
     chart1.style = 2
-    chart1.width = 18
-    chart1.height = 10
+    chart1.width = 13.6
+    chart1.height = 8
     chart1.legend = None
 
     data_ref = Reference(ws, min_col=n_stores * 2 + 2, max_col=n_stores * 2 + 2,
@@ -582,8 +582,8 @@ def write_summary_sheet(wb: Workbook, sales_pivot: pd.DataFrame,
     chart2.y_axis.title = "売上金額（千円）"
     chart2.x_axis.title = None
     chart2.style = 2
-    chart2.width = 18
-    chart2.height = 10
+    chart2.width = 18.86
+    chart2.height = 8
 
     for i, store in enumerate(stores):
         col_idx = 2 + i * 2
@@ -599,7 +599,7 @@ def write_summary_sheet(wb: Workbook, sales_pivot: pd.DataFrame,
     chart2.plot_area.spPr = GraphicalProperties(
         ln=LineProperties(solidFill='A6A6A6', w=9525)
     )
-    ws.add_chart(chart2, f"A{total_row + 28}")
+    ws.add_chart(chart2, f"E{total_row + 2}")
 
 
 def write_store_sheet(wb: Workbook, store_name: str,

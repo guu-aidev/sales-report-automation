@@ -7,7 +7,7 @@
 ### GUIランチャー
 年度・店舗の切り替えとExcel出力をワンクリックで操作できるランチャー画面
 
-![GUIランチャー](docs/gui_launcher.png)
+<img src="docs/gui_launcher.png" width="300">
 
 ### KPIダッシュボード
 年間総売上・最高/最低/平均月売上・No.1店舗・客単価・前月比の6KPIカード＋月別全店推移テーブル（条件付き書式）
@@ -73,10 +73,24 @@
 
 **注意:** 列名は上記の通り正確に入力してください。列名が異なる場合はエラーになります。
 
+## アーキテクチャ
+
+```mermaid
+graph LR
+    CSV["📁 data/sample/*.csv\n売上日次データ"]
+    DB[("🗄️ data/sales.db\nSQLite")]
+    GUI["🖥️ gui_launcher.exe\n年度・店舗を選択"]
+    Excel["📊 output/monthly_report.xlsx\nKPIダッシュボード\n月別集計サマリー\n店舗詳細"]
+
+    CSV -->|"pandas\n読込・バリデーション・UPSERT"| DB
+    GUI -->|"年度・店舗を指定"| DB
+    DB -->|"openpyxl\n集計・グラフ・条件付き書式"| Excel
+```
+
 ## 技術スタック
 
 - Python 3.10+
-- pandas — データ集計・ピボット処理
+- pandas — CSV読み込み・バリデーション・ピボット集計
 - openpyxl — Excelファイル生成・スタイリング・グラフ作成
 - sqlite3 — 売上データの永続化（標準ライブラリ）
 - customtkinter — モダンGUIランチャー（丸みボタン・カラーテーマ対応）
