@@ -1,0 +1,10 @@
+output/
+__pycache__/
+*.pyc
+.env
+*.db
+
+# PyInstaller
+build/
+dist/
+*.spec
