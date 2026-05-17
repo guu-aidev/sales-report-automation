@@ -1,0 +1,6 @@
+pandas>=2.0
+openpyxl>=3.1
+customtkinter>=5.2
+
+# ビルド用（exeを生成する場合のみ必要）
+pyinstaller>=6.0

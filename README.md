@@ -6,23 +6,23 @@
 
 ## デモ
 
-### GUIランチャー
-年度・店舗の切り替えとExcel出力をワンクリックで操作できるランチャー画面
+### ツール画面
+年度・店舗の切り替えとExcel出力をワンクリックで操作できる画面
 
 <img src="docs/gui_launcher.png" width="300">
 
 ### KPIダッシュボード
-年間総売上・最高/最低/平均月売上・No.1店舗・客単価・前月比の6KPIカード＋月別全店推移テーブル（条件付き書式）
+年間総売上・最高/最低/平均月売上・売上No.1店舗・平均客単価・前月比の6つの指標を大きく表示し、月別全店の売上推移と前月比を増減で色分けした一覧表を掲載
 
 <img src="docs/KPIダッシュボード.png" width="550">
 
 ### 月別集計サマリー
-全店舗の月別売上・客数を横断比較＋棒グラフ
+全店舗の月別売上・客数を一覧表で示し、全店合計の推移と店舗別の比較を2つの棒グラフで可視化
 
 ![月別集計サマリー](docs/月別集計サマリー.png)
 
 ### 店舗詳細
-選択中の店舗の月別売上・客数・客単価・前月比・累計売上＋折れ線グラフ
+選択中の店舗の月別売上・客数・客単価・前月比・累計売上の一覧表と、売上推移の折れ線グラフ
 
 <img src="docs/店舗詳細.png" width="500">
 
@@ -38,7 +38,7 @@
 
 > ```
 > 売上レポートツール/
-> ├── gui_launcher.exe      ← ダウンロードしたexe
+> ├── sales_report.exe      ← ダウンロードしたexe
 > └── data/
 >     └── sample/
 >         └── sales_2024.csv  ← 売上CSVをここに置く(サンプルあり)
@@ -54,15 +54,15 @@
 >     └── monthly_report.xlsx  ← 集計済みExcel
 > ```
 
- 1. `gui_launcher.exe` をダブルクリックで起動（初回は自動でCSVを取り込みます）
- 2. 年度ドロップダウンを選択
-    KPIダッシュボード・月別集計サマリーを更新、店舗リストも切り替わる
- 3. 店舗ドロップダウンで任意の店舗を選択
- 4. Excelを開くボタンを選択
- 5. 新しいCSVを追加した場合はDB更新ボタンを選択
-    CSVを再取り込みします（CSVにある行は上書き、CSVにない行はDBに保持）
+1. `sales_report.exe` をダブルクリックで起動（初回は自動でCSVを取り込みます）
+2. 年度ドロップダウンを選択
+   KPIダッシュボード・月別集計サマリーを更新、店舗リストも切り替わる
+3. 店舗ドロップダウンで任意の店舗を選択
+4. Excelを開くボタンを選択
+5. 新しいCSVを追加した場合はDB更新ボタンを選択
+   CSVを再取り込みします（CSVにある行は上書き、CSVにない行はDBに保持）
 
-> **補足:** CSVの内容は `sales.db` に取り込まれて永続化されます。取り込み済みのCSVファイルは削除しても動作に影響しません。
+> **補足:** CSVの内容はツール内（`sales.db`）に保存されるので、取り込み済みのCSVファイルは削除しても動作に影響しません。
 
 ## 入力CSVのフォーマット
 
@@ -84,13 +84,49 @@
 
 **注意:** 列名は上記の通り正確に入力してください。列名が異なる場合はエラーになります。
 
-## アーキテクチャ
+---
+
+## 開発者向け情報
+
+<details>
+<summary>技術スタック / ディレクトリ構成 / アーキテクチャ / 開発環境</summary>
+
+### 技術スタック
+
+- **Python 3.10+**
+- **pandas** — CSV読み込み・バリデーション・ピボット集計
+- **openpyxl** — Excelファイル生成・スタイリング・グラフ作成
+- **sqlite3** — 売上データの永続化（標準ライブラリ）
+- **customtkinter** — モダンなツール画面（丸みボタン・カラーテーマ対応）
+- **PyInstaller** — 単一exe配布
+
+### ディレクトリ構成
+
+```
+01_excel_csv_automation/
+├── README.md
+├── requirements.txt           # 依存ライブラリ
+├── sales_report.spec          # PyInstallerビルド設定
+├── app/                       # アプリ本体（exeはここから生成）
+│   ├── gui_launcher.pyw       # GUIエントリポイント
+│   └── generate_report.py     # CSV→DB→Excel生成のコアロジック
+├── scripts/
+│   └── generate_sample_data.py  # サンプルCSV生成用（開発時のみ）
+├── data/
+│   ├── sample/                # サンプル売上CSV
+│   └── sales.db               # CSV取り込み済みDB（gitignore）
+├── docs/                      # スクリーンショット
+├── output/                    # 生成Excel出力先（gitignore）
+└── dist/                      # exe出力先（gitignore）
+```
+
+### アーキテクチャ
 
 ```mermaid
 graph LR
     CSV["📁 data/sample/*.csv\n売上日次データ"]
     DB[("🗄️ data/sales.db\nSQLite")]
-    GUI["🖥️ gui_launcher.exe\n年度・店舗を選択"]
+    GUI["🖥️ sales_report.exe\n年度・店舗を選択"]
     Excel["📊 output/monthly_report.xlsx\nKPIダッシュボード\n月別集計サマリー\n店舗詳細"]
 
     CSV -->|"pandas\n読込・バリデーション・UPSERT"| DB
@@ -98,28 +134,28 @@ graph LR
     DB -->|"openpyxl\n集計・グラフ・条件付き書式"| Excel
 ```
 
-## 技術スタック
+### 開発環境での実行
 
-- Python 3.10+
-- pandas — CSV読み込み・バリデーション・ピボット集計
-- openpyxl — Excelファイル生成・スタイリング・グラフ作成
-- sqlite3 — 売上データの永続化（標準ライブラリ）
-- customtkinter — モダンGUIランチャー（丸みボタン・カラーテーマ対応）
-
-## 補足
-
-**開発環境での実行**
-
-Pythonで直接起動する場合は以下のライブラリが必要です。（gui_launcher.exeで起動する場合は不要）
+Pythonで直接起動する場合は以下のライブラリが必要です。（`sales_report.exe` で起動する場合は不要）
 
 ```bash
-pip install pandas openpyxl customtkinter
+pip install -r requirements.txt
+python app/gui_launcher.pyw
 ```
 
-**サンプルデータについて**
+### exeのビルド
+
+```bash
+pyinstaller sales_report.spec
+# → dist/sales_report.exe が生成されます
+```
+
+### サンプルデータについて
 
 `data/sample/` に含まれるCSVは以下のスクリプトで生成しました。
 
+```bash
+python scripts/generate_sample_data.py
 ```
-scripts/generate_sample_data.py
-```
+
+</details>
