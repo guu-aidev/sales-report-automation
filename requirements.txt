@@ -2,5 +2,8 @@ pandas>=2.0
 openpyxl>=3.1
 customtkinter>=5.2
 
+# AIインサイト機能用（任意。環境変数 ANTHROPIC_API_KEY 未設定時は不要）
+anthropic>=0.40
+
 # ビルド用（exeを生成する場合のみ必要）
 pyinstaller>=6.0

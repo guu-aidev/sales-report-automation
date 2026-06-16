@@ -14,6 +14,7 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
+from app_config import load_config, save_config
 from generate_report import (
     DB_PATH,
     build_base_workbook,
@@ -121,6 +122,15 @@ class SalesReportApp(ctk.CTk):
             text_color="#374151", border_width=1, border_color="#e2e8f0",
         )
         self.btn_db.pack(side="left")
+
+        # ── AIコメント設定（控えめなサブボタン）──
+        self.btn_ai = ctk.CTkButton(
+            card, text="⚙  AIコメント設定", command=self._open_ai_settings,
+            width=_W, height=28,
+            fg_color="transparent", hover_color="#f1f5f9",
+            text_color="#64748b", border_width=1, border_color="#e2e8f0",
+        )
+        self.btn_ai.pack(padx=16, pady=(12, 0))
 
         # ── ステータス ──
         ctk.CTkFrame(card, fg_color="#f1f5f9", height=1, corner_radius=0).pack(
@@ -239,6 +249,77 @@ class SalesReportApp(ctk.CTk):
             os.startfile(OUTPUT_PATH)
         else:
             messagebox.showwarning("ファイルなし", "Excelファイルが見つかりません。")
+
+    # ── AIコメント設定ダイアログ ────────────────────────────────────────────
+
+    def _open_ai_settings(self):
+        cfg = load_config()
+
+        win = ctk.CTkToplevel(self)
+        win.title("AIコメント設定")
+        win.resizable(False, False)
+        win.configure(fg_color="#f1f5f9")
+        win.transient(self)
+        win.after(100, win.grab_set)  # Toplevel表示後にモーダル化（Windowsでのちらつき回避）
+
+        card = ctk.CTkFrame(win, fg_color="white", corner_radius=16)
+        card.pack(padx=20, pady=20, fill="both", expand=True)
+
+        ctk.CTkLabel(
+            card, text="AIコメント設定",
+            font=ctk.CTkFont(size=16, weight="bold"), text_color="#1e40af",
+        ).pack(anchor="w", padx=20, pady=(18, 4))
+        ctk.CTkLabel(
+            card, text="KPIダッシュボードにAI生成コメントを追加します。",
+            font=ctk.CTkFont(size=11), text_color="#64748b",
+            wraplength=300, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 14))
+
+        enabled_var = ctk.BooleanVar(value=bool(cfg.get("ai_enabled", False)))
+        ctk.CTkCheckBox(
+            card, text="AIインサイトを有効にする",
+            variable=enabled_var, font=ctk.CTkFont(size=13),
+        ).pack(anchor="w", padx=20)
+
+        ctk.CTkLabel(
+            card, text="Anthropic APIキー",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color="#374151",
+        ).pack(anchor="w", padx=20, pady=(16, 4))
+        key_entry = ctk.CTkEntry(card, width=300, show="●", placeholder_text="sk-ant-...")
+        key_entry.pack(padx=20)
+        if cfg.get("api_key"):
+            key_entry.insert(0, cfg["api_key"])
+
+        ctk.CTkLabel(
+            card, text="キーは config.json に保存されます。\nモデル: claude-sonnet-4-6",
+            font=ctk.CTkFont(size=10), text_color="#94a3b8", justify="left",
+        ).pack(anchor="w", padx=20, pady=(8, 16))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(padx=20, pady=(0, 18), anchor="e")
+
+        def _save():
+            save_config(enabled_var.get(), key_entry.get())
+            win.destroy()
+            year = self.year_cb.get()
+            if year.isdigit():
+                self._set_status("AI設定を保存しました。ダッシュボードを更新中...", _GRAY)
+                threading.Thread(target=self._rebuild_year, daemon=True).start()
+            else:
+                self._set_status("AI設定を保存しました", _GREEN)
+
+        ctk.CTkButton(
+            btn_row, text="キャンセル", width=100, command=win.destroy,
+            fg_color="#f1f5f9", hover_color="#e2e8f0",
+            text_color="#374151", border_width=1, border_color="#e2e8f0",
+        ).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(btn_row, text="保存", width=100, command=_save).pack(side="left")
+
+        # 親ウィンドウ中央に配置
+        win.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() - win.winfo_width()) // 2
+        y = self.winfo_y() + (self.winfo_height() - win.winfo_height()) // 2
+        win.geometry(f"+{max(x, 0)}+{max(y, 0)}")
 
     # ── ユーティリティ ──────────────────────────────────────────────────────
 

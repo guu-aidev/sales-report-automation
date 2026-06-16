@@ -1,8 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 datas = []
 datas += collect_data_files('customtkinter')
+
+# AIインサイト機能（任意）: anthropic "ライブラリ"（APIを呼ぶコード）のみ同梱する。
+# APIキーは同梱しない。キーは各ユーザーが実行時にGUIで入力し、各自のPCの
+# config.json に保存される（config.json はこのビルドには一切含まれない）。
+# anthropic 未導入でもビルドは通る（その場合 exe ではAI機能が無効になるだけ）。
+hiddenimports = []
+try:
+    import anthropic  # noqa: F401
+    hiddenimports += collect_submodules('anthropic')
+except ImportError:
+    pass
 
 
 a = Analysis(
@@ -10,7 +21,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

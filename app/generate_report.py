@@ -30,6 +30,8 @@ from openpyxl.formatting.rule import CellIsRule, ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from ai_commentary import generate_kpi_commentary
+
 MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月",
                "7月", "8月", "9月", "10月", "11月", "12月"]
 
@@ -72,10 +74,22 @@ def _yen_str(value: int) -> str:
 
 # ── ヘルパー ──────────────────────────────────────────────────────────────
 
+def _read_csv_auto(path: Path) -> pd.DataFrame:
+    """UTF-8 → Shift_JIS(cp932) の順に試して読み込む。
+    Excelの「CSV UTF-8」も「CSV (カンマ区切り)」も両方扱えるようにする。
+    """
+    for enc in ("utf-8-sig", "cp932"):
+        try:
+            return pd.read_csv(path, encoding=enc, parse_dates=["日付"])
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"{path.name}: 文字コードを判定できません（UTF-8 / Shift_JIS のいずれかで保存してください）")
+
+
 def load_csv_files(input_dir: Path, year: int) -> pd.DataFrame:
     frames = []
     for csv_path in sorted(input_dir.glob("*.csv")):
-        df = pd.read_csv(csv_path, encoding="utf-8-sig", parse_dates=["日付"])
+        df = _read_csv_auto(csv_path)
         frames.append(df)
     if not frames:
         raise FileNotFoundError(f"CSVファイルが見つかりません: {input_dir}")
@@ -98,7 +112,7 @@ def import_csv_to_db(input_dir: Path, db_path: Path = DB_PATH) -> None:
     REQUIRED = {"日付", "店舗名", "売上金額", "客数"}
     frames = []
     for csv_path in sorted(input_dir.glob("*.csv")):
-        df = pd.read_csv(csv_path, encoding="utf-8-sig", parse_dates=["日付"])
+        df = _read_csv_auto(csv_path)
         missing = REQUIRED - set(df.columns)
         if missing:
             raise ValueError(f"{csv_path.name}: 必須列が不足しています → {', '.join(sorted(missing))}")
@@ -263,6 +277,40 @@ def _color_scale(ws, cell_range: str):
         mid_type="percentile", mid_value=50, mid_color="E2E8F0",
         end_type="max",        end_color="C6EFCE",
     ))
+
+
+def _write_ai_insight(ws, text: str, start_row: int = 21):
+    """AI生成コメントを start_row 以降に1ブロック書き込む（凡例の下に配置）"""
+    ws.row_dimensions[start_row - 1].height = 8  # スペーサー
+
+    # ── 見出し ──
+    ws.row_dimensions[start_row].height = 22
+    ws.merge_cells(start_row=start_row, start_column=1, end_row=start_row, end_column=13)
+    h = ws.cell(row=start_row, column=1, value="💡 AIインサイト（自動生成コメント）")
+    h.font = Font(bold=True, size=11, color="FFFFFF")
+    h.fill = PatternFill("solid", fgColor="2E75B6")
+    h.alignment = Alignment(horizontal="center", vertical="center")
+
+    # ── 本文（折り返し表示）──
+    body_start, body_end = start_row + 1, start_row + 5
+    for r in range(body_start, body_end + 1):
+        ws.row_dimensions[r].height = 18
+    ws.merge_cells(start_row=body_start, start_column=1, end_row=body_end, end_column=13)
+    c = ws.cell(row=body_start, column=1, value=text)
+    c.font = Font(size=10, color="1F2937")
+    c.fill = PatternFill("solid", fgColor="EBF3FB")
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+
+    # ── 枠線（結合範囲の外周）──
+    med, no = Side(style="medium"), Side(style=None)
+    for r in range(body_start, body_end + 1):
+        for col in range(1, 14):
+            ws.cell(row=r, column=col).border = Border(
+                left=med if col == 1 else no,
+                right=med if col == 13 else no,
+                top=med if r == body_start else no,
+                bottom=med if r == body_end else no,
+            )
 
 
 # ── シート生成 ─────────────────────────────────────────────────────────────
@@ -449,6 +497,23 @@ def write_kpi_sheet(wb: Workbook, data: pd.DataFrame,
     # 凡例行の全セルに枠線を付与（結合末尾セルの右枠含む）
     for col in range(1, 14):
         ws.cell(row=19, column=col).border = BORDER
+
+    # ── AIインサイト（任意・環境変数 ANTHROPIC_API_KEY がある場合のみ）──
+    kpi_summary = {
+        "year": year,
+        "total_annual": total_annual,
+        "monthly_sales": _sales_vals,
+        "best_month": best_m,   "best_sales": _best_s,
+        "worst_month": worst_m, "worst_sales": _worst_s,
+        "avg_month": avg_m,
+        "store_ranking": [(store, int(sales)) for store, sales in store_annual.items()],
+        "avg_unit_price": avg_unit_price,
+        "total_customers": total_customers,
+        "last_month_mom": dec_mom - 1.0,
+    }
+    commentary = generate_kpi_commentary(kpi_summary)
+    if commentary:
+        _write_ai_insight(ws, commentary)
 
 
 def write_summary_sheet(wb: Workbook, sales_pivot: pd.DataFrame,
